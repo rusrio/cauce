@@ -29,6 +29,7 @@ export {
   type CauceErrorCode,
   type CauceErrorOptions,
 } from './errors';
+export { computeMaxFee, quotePayment, type QuotePaymentQuery } from './fees';
 export {
   decodeHookData,
   encodeHookData,
@@ -79,6 +80,7 @@ export {
   type CctpChainPreset,
 } from './presets';
 export { defaultRetryOptions, type RetryOptions } from './retry';
+export { formatUsdc, parseUsdc, USDC_DECIMALS } from './usdc';
 export type {
   CaucePaymentRequest,
   CauceReferral,
