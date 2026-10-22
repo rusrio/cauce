@@ -30,7 +30,7 @@ export type CaucePaymentState =
       burnTxHash?: Hash;
       error: CauceError;
       failedDuring: InFlightStatus;
-      /** True once USDC has been burned: the payment can still be settled with `RESUME`. */
+      /** True once USDC may have been burned: the payment can still be settled with `RESUME`. */
       recoverable: boolean;
     };
 
@@ -141,7 +141,8 @@ export function transition(state: CaucePaymentState, event: CaucePaymentEvent): 
           ...(burnTxHash ? { burnTxHash } : {}),
           error: event.error,
           failedDuring: state.status,
-          recoverable: burnTxHash !== undefined,
+          // Burned (or possibly burned) USDC can still settle; a reverted burn moved nothing.
+          recoverable: burnTxHash !== undefined && event.error.code !== 'TX_REVERTED',
         };
       }
       break;

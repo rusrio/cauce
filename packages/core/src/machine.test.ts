@@ -42,7 +42,7 @@ const direct: PaymentContext = {
   sourceChainId: 5042002,
 };
 const pending: PendingPayment = { burnTxHash: hash(2), sourceDomain: 6, ctx: cctp, createdAt: 0 };
-const error = new CauceError('TX_REVERTED', 'boom');
+const error = new CauceError('RELAY_FAILED', 'boom');
 
 function run(state: CaucePaymentState, ...events: CaucePaymentEvent[]): CaucePaymentState {
   return events.reduce(transition, state);
@@ -129,6 +129,14 @@ describe('failures and recovery', () => {
       burnTxHash: hash(2),
       recoverable: true,
     });
+  });
+
+  it('is not recoverable when the burn transaction reverted', () => {
+    const state = run(
+      { status: 'burning', ctx: cctp, burnTxHash: hash(2) },
+      { type: 'FAIL', error: new CauceError('TX_REVERTED', 'reverted') },
+    );
+    expect(state).toMatchObject({ failedDuring: 'burning', recoverable: false });
   });
 
   it('resumes a pending payment into attesting, from idle or failed', () => {
