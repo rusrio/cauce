@@ -53,6 +53,22 @@ export {
 } from './iris';
 export { silentLogger, type CauceLogger } from './logger';
 export {
+  getPaymentSteps,
+  initialPaymentState,
+  isInFlight,
+  isTerminal,
+  transition,
+  type CaucePaymentEvent,
+  type CaucePaymentState,
+  type CaucePaymentStatus,
+  type FailedPaymentState,
+  type InFlightStatus,
+  type PaymentStep,
+  type PaymentStepId,
+  type PaymentStepState,
+  type SettledPaymentState,
+} from './machine';
+export {
   CAUCE_PRESETS_VERSION,
   cctpPresets,
   deploymentPresets,
@@ -63,4 +79,11 @@ export {
   type CctpChainPreset,
 } from './presets';
 export { defaultRetryOptions, type RetryOptions } from './retry';
-export type { CaucePaymentRequest, CauceReferral, PaymentRoute } from './types';
+export type {
+  CaucePaymentRequest,
+  CauceReferral,
+  PaymentContext,
+  PaymentQuote,
+  PaymentRoute,
+  PendingPayment,
+} from './types';
