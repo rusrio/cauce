@@ -1,0 +1,14 @@
+{
+  "messages": [
+    {
+      "attestation": "PENDING",
+      "message": null,
+      "eventNonce": "0x8b223f26e05bcecca86d397e387534d3abb31a803f327449ca7eb3b13106ec50",
+      "cctpVersion": 2,
+      "status": "pending_confirmations",
+      "decodedMessage": null,
+      "delayReason": null
+    }
+  ],
+  "sourceTxHash": "0x884cc966331b1fba9b8b7d56edf839dc422653a4b315775108e5d6e2622357fd"
+}

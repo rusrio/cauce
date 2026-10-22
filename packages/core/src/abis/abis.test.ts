@@ -4,7 +4,9 @@ import { cauceRelayAbi, cauceVaultAbi, tokenMessengerV2Abi } from './index';
 
 function signatures(abi: readonly { type: string }[]): string[] {
   return abi.flatMap((item) =>
-    item.type === 'function' ? [toFunctionSignature(item as Parameters<typeof toFunctionSignature>[0])] : [],
+    item.type === 'function'
+      ? [toFunctionSignature(item as Parameters<typeof toFunctionSignature>[0])]
+      : [],
   );
 }
 
