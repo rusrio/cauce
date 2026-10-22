@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import {Test, console} from "forge-std/Test.sol";
-import {NexusVault} from "../src/NexusVault.sol";
+import {CauceVault} from "../src/CauceVault.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
@@ -16,8 +16,8 @@ contract MockUSDC is ERC20 {
     }
 }
 
-contract NexusVaultTest is Test {
-    NexusVault public vault;
+contract CauceVaultTest is Test {
+    CauceVault public vault;
     MockUSDC public usdc;
     
     address public merchant = makeAddr("merchant");
@@ -26,12 +26,12 @@ contract NexusVaultTest is Test {
 
     function setUp() public {
         usdc = new MockUSDC();
-        vault = new NexusVault(address(usdc));
-        vault.setNexusPayRelay(relayer);
+        vault = new CauceVault(address(usdc));
+        vault.setRelay(relayer);
         
         // Fund vault so it can pay out (simulating CCTP backing)
         // In reality, CCTP mints to Vault, then Vault credits internal balance.
-        // Wait, NexusVault logic:
+        // Wait, CauceVault logic:
         // handleReceiveFinalizedMessage -> credits internal `merchantBalances`.
         // withdraw -> transfers USDC from Vault to user.
         // So Vault needs USDC balance to support withdrawals.
@@ -78,7 +78,7 @@ contract NexusVaultTest is Test {
         vm.prank(merchant);
         uint256 campaignId = vault.createReferralCampaign(10, 1000);
         
-        vm.expectRevert(NexusVault.NexusVault__NotCampaignOwner.selector);
+        vm.expectRevert(CauceVault.CauceVault__NotCampaignOwner.selector);
         vm.prank(referrer); // Wrong user
         vault.updateCampaign(campaignId, 20, 2000);
     }

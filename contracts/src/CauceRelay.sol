@@ -7,7 +7,7 @@ interface IMessageTransmitter {
         returns (bool success);
 }
 
-interface INexusVault {
+interface ICauceVault {
     function handleReceiveFinalizedMessage(
         uint32 sourceDomain,
         bytes32 sender,
@@ -15,10 +15,10 @@ interface INexusVault {
     ) external returns (bool);
 }
 
-contract NexusPayRelay {
+contract CauceRelay {
     // --- State Variables ---
     IMessageTransmitter public immutable MESSAGE_TRANSMITTER;
-    INexusVault public immutable NEXUS_VAULT;
+    ICauceVault public immutable CAUCE_VAULT;
 
     // --- Events ---
     event PaymentRelayed(
@@ -29,14 +29,14 @@ contract NexusPayRelay {
     );
 
     // --- Errors ---
-    error NexusPayRelay__ReceiveMessageFailed();
-    error NexusPayRelay__HookCallFailed();
-    error NexusPayRelay__InvalidMessageLength();
+    error CauceRelay__ReceiveMessageFailed();
+    error CauceRelay__HookCallFailed();
+    error CauceRelay__InvalidMessageLength();
 
     // --- Constructor ---
-    constructor(address _messageTransmitter, address _nexusVault) {
+    constructor(address _messageTransmitter, address _cauceVault) {
         MESSAGE_TRANSMITTER = IMessageTransmitter(_messageTransmitter);
-        NEXUS_VAULT = INexusVault(_nexusVault);
+        CAUCE_VAULT = ICauceVault(_cauceVault);
     }
 
 
@@ -47,7 +47,7 @@ contract NexusPayRelay {
 
         bool receiveSuccess = MESSAGE_TRANSMITTER.receiveMessage(message, attestation);
         if (!receiveSuccess) {
-            revert NexusPayRelay__ReceiveMessageFailed();
+            revert CauceRelay__ReceiveMessageFailed();
         }
 
         (
@@ -57,14 +57,14 @@ contract NexusPayRelay {
             bytes memory messageBody
         ) = _parseCCTPMessage(message);
 
-        bool hookSuccess = NEXUS_VAULT.handleReceiveFinalizedMessage(
+        bool hookSuccess = CAUCE_VAULT.handleReceiveFinalizedMessage(
             sourceDomain,
             sender,
             messageBody
         );
 
         if (!hookSuccess) {
-            revert NexusPayRelay__HookCallFailed();
+            revert CauceRelay__HookCallFailed();
         }
 
         bytes32 messageHash = keccak256(message);
@@ -108,7 +108,7 @@ contract NexusPayRelay {
     {
         // Validate minimum message length (148 bytes header + some messageBody)
         if (message.length < 148) {
-            revert NexusPayRelay__InvalidMessageLength();
+            revert CauceRelay__InvalidMessageLength();
         }
 
         // Extract sourceDomain (offset 4, 4 bytes)
@@ -164,8 +164,8 @@ contract NexusPayRelay {
     function getConfiguration() 
         external 
         view 
-        returns (address messageTransmitter, address nexusVault) 
+        returns (address messageTransmitter, address cauceVault) 
     {
-        return (address(MESSAGE_TRANSMITTER), address(NEXUS_VAULT));
+        return (address(MESSAGE_TRANSMITTER), address(CAUCE_VAULT));
     }
 }

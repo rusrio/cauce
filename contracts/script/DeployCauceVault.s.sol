@@ -2,9 +2,9 @@
 pragma solidity ^0.8.20;
 
 import {Script, console} from "forge-std/Script.sol";
-import {NexusVault} from "../src/NexusVault.sol";
+import {CauceVault} from "../src/CauceVault.sol";
 
-contract DeployNexusVault is Script {
+contract DeployCauceVault is Script {
     function run() external {
 
         address usdcAddress = vm.envAddress("USDC_ADDRESS");
@@ -14,9 +14,9 @@ contract DeployNexusVault is Script {
         
         vm.startBroadcast(deployerPrivateKey);
 
-        NexusVault vault = new NexusVault(usdcAddress);
+        CauceVault vault = new CauceVault(usdcAddress);
 
-        console.log("NexusVault deployed to:", address(vault));
+        console.log("CauceVault deployed to:", address(vault));
         console.log("USDC Address:", usdcAddress);
         console.log("MessageTransmitter Address:", messageTransmitterAddress);
 

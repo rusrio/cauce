@@ -6,7 +6,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 
 
-contract NexusVault {
+contract CauceVault {
     using SafeERC20 for IERC20;
 
     // --- Structs ---
@@ -26,8 +26,8 @@ contract NexusVault {
 
     mapping(address merchantAddress => uint256 usdcBalance) public merchantBalances;
     
-    // NexusPayRelay contract address (can only be set once)
-    address public nexusPayRelay;
+    // CauceRelay contract address (can only be set once)
+    address public relay;
 
     // --- Events ---
     event CampaignCreated(
@@ -58,18 +58,18 @@ contract NexusVault {
     );
 
     // --- Errors ---
-    error NexusVault__InvalidSplit();
-    error NexusVault__CampaignNotFound();
-    error NexusVault__CampaignInactive();
-    error NexusVault__InvalidAmount();
-    error NexusVault__InsufficientBalance();
-    error NexusVault__RewardLimitReached();
-    error NexusVault__InvalidMessageFormat();
-    error NexusVault__CCTPReceiveFailed();
-    error NexusVault__OnlyRelay();
-    error NexusVault__UnfinalizedMessagesNotSupported();
-    error NexusVault__AmountTooSmallToCoverFee();
-    error NexusVault__NotCampaignOwner();
+    error CauceVault__InvalidSplit();
+    error CauceVault__CampaignNotFound();
+    error CauceVault__CampaignInactive();
+    error CauceVault__InvalidAmount();
+    error CauceVault__InsufficientBalance();
+    error CauceVault__RewardLimitReached();
+    error CauceVault__InvalidMessageFormat();
+    error CauceVault__CCTPReceiveFailed();
+    error CauceVault__OnlyRelay();
+    error CauceVault__UnfinalizedMessagesNotSupported();
+    error CauceVault__AmountTooSmallToCoverFee();
+    error CauceVault__NotCampaignOwner();
 
     constructor(address _usdc) {
         USDC = IERC20(_usdc);
@@ -78,14 +78,14 @@ contract NexusVault {
     // --- External Functions ---
 
     /**
-     * @notice Sets the NexusPayRelay contract address (one-time only)
+     * @notice Sets the CauceRelay contract address (one-time only)
      * @dev Can only be called once to prevent changing the relay after deployment
-     * @param _relay Address of the NexusPayRelay contract
+     * @param _relay Address of the CauceRelay contract
      */
-    function setNexusPayRelay(address _relay) external {
-        require(nexusPayRelay == address(0), NexusVault__OnlyRelay());
-        require(_relay != address(0), NexusVault__InvalidMessageFormat());
-        nexusPayRelay = _relay;
+    function setRelay(address _relay) external {
+        require(relay == address(0), CauceVault__OnlyRelay());
+        require(_relay != address(0), CauceVault__InvalidMessageFormat());
+        relay = _relay;
     }
 
     // Create a new referral campaign with a reward limit cap
@@ -93,8 +93,8 @@ contract NexusVault {
         uint256 referrerPct,
         uint256 rewardLimit
     ) external returns (uint256 campaignId) {
-        if (referrerPct > 100) revert NexusVault__InvalidSplit();
-        if (rewardLimit == 0) revert NexusVault__InvalidAmount();
+        if (referrerPct > 100) revert CauceVault__InvalidSplit();
+        if (rewardLimit == 0) revert CauceVault__InvalidAmount();
 
         campaignId = ++nextCampaignId;
         campaigns[campaignId] = CampaignParams({
@@ -120,7 +120,7 @@ contract NexusVault {
      */
     function toggleCampaign(uint256 campaignId, bool isActive) external {
         CampaignParams storage campaign = campaigns[campaignId];
-        require(campaign.merchant == msg.sender, NexusVault__NotCampaignOwner());
+        require(campaign.merchant == msg.sender, CauceVault__NotCampaignOwner());
         campaign.isActive = isActive;
     }
 
@@ -136,9 +136,9 @@ contract NexusVault {
         uint256 rewardLimit
     ) external {
         CampaignParams storage campaign = campaigns[campaignId];
-        require(campaign.merchant == msg.sender, NexusVault__NotCampaignOwner());
-        if (referrerPct > 100) revert NexusVault__InvalidSplit();
-        if (rewardLimit == 0) revert NexusVault__InvalidAmount();
+        require(campaign.merchant == msg.sender, CauceVault__NotCampaignOwner());
+        if (referrerPct > 100) revert CauceVault__InvalidSplit();
+        if (rewardLimit == 0) revert CauceVault__InvalidAmount();
         
         campaign.referrerPct = referrerPct;
         campaign.rewardLimit = rewardLimit;
@@ -150,7 +150,7 @@ contract NexusVault {
         address merchant,
         string memory orderId
     ) external {
-        if (amount == 0) revert NexusVault__InvalidAmount();
+        if (amount == 0) revert CauceVault__InvalidAmount();
 
         USDC.safeTransferFrom(msg.sender, address(this), amount);
         _processPay(amount, merchant, orderId);
@@ -161,8 +161,8 @@ contract NexusVault {
         bytes32 sender,
         bytes calldata messageBody
     ) external returns (bool) {
-        // Only NexusPayRelay can call this function
-        require(msg.sender == nexusPayRelay, NexusVault__OnlyRelay());
+        // Only CauceRelay can call this function
+        require(msg.sender == relay, CauceVault__OnlyRelay());
         
         uint256 amount = _extractAmountFromBurnMessage(messageBody);
         bytes memory hookData = _extractHookDataFromBurnMessage(messageBody);
@@ -176,7 +176,7 @@ contract NexusVault {
         // Deduct CCTP protocol fee (0.02 USDC = 20000 wei in 6 decimals)
         // The user pays amount + fee, but merchant receives only amount
         uint256 protocolFee = 20000; // 0.02 USDC
-        require(amount > protocolFee, NexusVault__AmountTooSmallToCoverFee());
+        require(amount > protocolFee, CauceVault__AmountTooSmallToCoverFee());
         uint256 merchantAmount = amount - protocolFee;
 
         address referrer = address(0);
@@ -212,7 +212,7 @@ contract NexusVault {
     // Withdraw merchant earnings to their wallet (on Arc Testnet)
     function withdraw(uint256 amount) external {
         if (merchantBalances[msg.sender] < amount)
-            revert NexusVault__InsufficientBalance();
+            revert CauceVault__InsufficientBalance();
 
         merchantBalances[msg.sender] -= amount;
         USDC.safeTransfer(msg.sender, amount);
@@ -302,7 +302,7 @@ contract NexusVault {
         uint256 hookDataOffset = 228;
         
         if (messageBody.length <= hookDataOffset) {
-            revert NexusVault__InvalidMessageFormat();
+            revert CauceVault__InvalidMessageFormat();
         }
         
         return messageBody[hookDataOffset:];
@@ -317,7 +317,7 @@ contract NexusVault {
         uint256 amountOffset = 68;
         
         if (messageBody.length < amountOffset + 32) {
-            revert NexusVault__InvalidMessageFormat();
+            revert CauceVault__InvalidMessageFormat();
         }
         
         return abi.decode(messageBody[amountOffset:amountOffset + 32], (uint256));
