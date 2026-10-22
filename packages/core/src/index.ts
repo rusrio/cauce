@@ -14,6 +14,15 @@ export {
   type DecodedCctpMessage,
 } from './cctp-message';
 export {
+  createCauceConfig,
+  DEFAULT_FEE_BUFFER_BPS,
+  type CauceConfig,
+  type CauceFeeOptions,
+  type CauceSettlement,
+  type CauceSourceChain,
+  type CreateCauceConfigOptions,
+} from './config';
+export {
   CauceError,
   isCauceError,
   toCauceError,
@@ -43,5 +52,15 @@ export {
   type WaitForAttestationQuery,
 } from './iris';
 export { silentLogger, type CauceLogger } from './logger';
+export {
+  CAUCE_PRESETS_VERSION,
+  cctpPresets,
+  deploymentPresets,
+  irisUrls,
+  settlementChains,
+  type CauceDeployment,
+  type CauceEnvironment,
+  type CctpChainPreset,
+} from './presets';
 export { defaultRetryOptions, type RetryOptions } from './retry';
 export type { CaucePaymentRequest, CauceReferral, PaymentRoute } from './types';
