@@ -4,6 +4,7 @@ pragma solidity ^0.8.26;
 import {Test} from "forge-std/Test.sol";
 import {CauceVault} from "../src/CauceVault.sol";
 import {CauceRelay} from "../src/CauceRelay.sol";
+import {HookData} from "../src/libraries/HookData.sol";
 import {MockUSDC} from "./mocks/MockUSDC.sol";
 import {MockMessageTransmitter, MockTokenMessenger, ForgedMessageHandler} from "./mocks/MockCctp.sol";
 import {CctpMessageBuilder} from "./utils/CctpMessageBuilder.sol";
@@ -52,7 +53,7 @@ contract CauceRelayTest is Test {
             messageSender: CctpMessageBuilder.toBytes32(payer),
             maxFee: 20_000,
             feeExecuted: 10_000,
-            hookData: abi.encode(merchant, "order-1")
+            hookData: HookData.encode(HookData.Payload(merchant, "order-1", 0, address(0)))
         });
     }
 
@@ -64,8 +65,18 @@ contract CauceRelayTest is Test {
         relay.relayPayment(message, ATTESTATION);
 
         assertEq(usdc.balanceOf(address(vault)), 1_010_000);
-        assertGt(vault.merchantBalances(merchant), 0);
+        assertEq(vault.balances(merchant), 1_010_000);
         assertEq(transmitter.usedNonces(keccak256("nonce-1")), 1);
+    }
+
+    function test_RefundsPayerWhenHookDataIsInvalid() public {
+        CctpMessageBuilder.Message memory m = _payment();
+        m.hookData = hex"deadbeef";
+
+        relay.relayPayment(m.build(), ATTESTATION);
+
+        assertEq(vault.balances(payer), 1_010_000);
+        assertEq(vault.balances(merchant), 0);
     }
 
     function test_RevertsOnReplay() public {
@@ -80,7 +91,7 @@ contract CauceRelayTest is Test {
     function test_RevertsWhenMintRecipientIsNotVault() public {
         CctpMessageBuilder.Message memory m = _payment();
         m.mintRecipient = CctpMessageBuilder.toBytes32(attacker);
-        m.hookData = abi.encode(attacker, "steal");
+        m.hookData = HookData.encode(HookData.Payload(attacker, "steal", 0, address(0)));
 
         vm.expectRevert(abi.encodeWithSelector(CauceRelay.CauceRelay__WrongMintRecipient.selector, m.mintRecipient));
         relay.relayPayment(m.build(), ATTESTATION);
@@ -92,7 +103,7 @@ contract CauceRelayTest is Test {
         CctpMessageBuilder.Message memory m = _payment();
         m.recipient = CctpMessageBuilder.toBytes32(address(forged));
         m.sender = CctpMessageBuilder.toBytes32(attacker);
-        m.hookData = abi.encode(attacker, "forged");
+        m.hookData = HookData.encode(HookData.Payload(attacker, "forged", 0, address(0)));
 
         vm.expectRevert(abi.encodeWithSelector(CauceRelay.CauceRelay__WrongRecipient.selector, m.recipient));
         relay.relayPayment(m.build(), ATTESTATION);

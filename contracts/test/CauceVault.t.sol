@@ -1,70 +1,172 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.26;
 
-import {Test, console} from "forge-std/Test.sol";
+import {Test} from "forge-std/Test.sol";
 import {CauceVault} from "../src/CauceVault.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-
-contract MockUSDC is ERC20 {
-    constructor() ERC20("USDC", "USDC") {
-        _mint(msg.sender, 1000000 * 10 ** 6);
-    }
-
-    function decimals() public pure override returns (uint8) {
-        return 6;
-    }
-}
+import {HookData} from "../src/libraries/HookData.sol";
+import {MockUSDC} from "./mocks/MockUSDC.sol";
 
 contract CauceVaultTest is Test {
-    CauceVault public vault;
-    MockUSDC public usdc;
+    CauceVault internal vault;
+    MockUSDC internal usdc;
 
-    address public merchant = makeAddr("merchant");
-    address public referrer = makeAddr("referrer");
-    address public relayer = address(this); // Test contract acts as relayer
+    address internal relay = makeAddr("relay");
+    address internal merchant = makeAddr("merchant");
+    address internal referrer = makeAddr("referrer");
+    address internal payer = makeAddr("payer");
 
     function setUp() public {
         usdc = new MockUSDC();
         vault = new CauceVault(address(usdc));
-        vault.setRelay(relayer);
-
-        // Fund vault so it can pay out (simulating CCTP backing)
-        // In reality, CCTP mints to Vault, then Vault credits internal balance.
-        // Wait, CauceVault logic:
-        // handleReceiveFinalizedMessage -> credits internal `merchantBalances`.
-        // withdraw -> transfers USDC from Vault to user.
-        // So Vault needs USDC balance to support withdrawals.
-        usdc.transfer(address(vault), 100000 * 10 ** 6);
+        vault.setRelay(relay);
     }
 
-    function testCreateCampaign() public {
-        vm.prank(merchant);
-        uint256 campaignId = vault.createReferralCampaign(10, 1000 * 10 ** 6);
-
-        (uint256 pct, address owner, uint256 limit, uint256 total, bool active) = vault.campaigns(campaignId);
-
-        assertEq(pct, 10);
-        assertEq(owner, merchant);
-        assertEq(limit, 1000 * 10 ** 6);
-        assertEq(total, 0);
-        assertTrue(active);
+    function _hookData(string memory orderId) internal view returns (bytes memory) {
+        return HookData.encode(HookData.Payload(merchant, orderId, 0, address(0)));
     }
 
-    function testToggleCampaign() public {
-        vm.prank(merchant);
-        uint256 campaignId = vault.createReferralCampaign(10, 1000);
+    function _referralHookData(uint256 campaignId) internal view returns (bytes memory) {
+        return HookData.encode(HookData.Payload(merchant, "order-ref", campaignId, referrer));
+    }
 
+    /// Simulates CauceRelay: USDC is minted to the vault, then settled.
+    function _settle(uint256 amount, bytes memory hookData) internal {
+        usdc.mint(address(vault), amount);
+        _settleMinted(amount, hookData);
+    }
+
+    function _settleMinted(uint256 amount, bytes memory hookData) internal {
+        vm.prank(relay);
+        vault.settle(6, keccak256(hookData), payer, amount, hookData);
+    }
+
+    function _createCampaign(uint256 referrerPct, uint256 rewardLimit) internal returns (uint256 campaignId) {
+        vm.prank(merchant);
+        campaignId = vault.createReferralCampaign(referrerPct, rewardLimit);
+    }
+
+    // --- Relay setup ---
+
+    function test_SetRelay_OnlyDeployer() public {
+        CauceVault fresh = new CauceVault(address(usdc));
+
+        vm.prank(makeAddr("frontrunner"));
+        vm.expectRevert(CauceVault.CauceVault__NotDeployer.selector);
+        fresh.setRelay(makeAddr("evil-relay"));
+    }
+
+    function test_SetRelay_OnlyOnce() public {
+        vm.expectRevert(CauceVault.CauceVault__RelayAlreadySet.selector);
+        vault.setRelay(makeAddr("other"));
+    }
+
+    function test_SetRelay_RejectsZero() public {
+        CauceVault fresh = new CauceVault(address(usdc));
+        vm.expectRevert(CauceVault.CauceVault__ZeroAddress.selector);
+        fresh.setRelay(address(0));
+    }
+
+    // --- Cross-chain settlement ---
+
+    function test_Settle_CreditsMintedAmount() public {
+        bytes memory hookData = _hookData("order-1");
+        usdc.mint(address(vault), 1_000_000);
+
+        vm.expectEmit(address(vault));
+        emit CauceVault.PaymentReceived(merchant, 1_000_000, "order-1");
+        vm.expectEmit(address(vault));
+        emit CauceVault.CrossChainPaymentSettled(keccak256(hookData), merchant, 6, payer, 1_000_000);
+        _settleMinted(1_000_000, hookData);
+
+        assertEq(vault.balances(merchant), 1_000_000);
+    }
+
+    function test_Settle_OnlyRelay() public {
+        vm.expectRevert(CauceVault.CauceVault__OnlyRelay.selector);
+        vault.settle(6, bytes32(0), payer, 1, _hookData("order-1"));
+    }
+
+    function test_Settle_RefundsPayerOnInvalidHookData() public {
+        bytes memory legacy = abi.encode(merchant, "order-1");
+        usdc.mint(address(vault), 500_000);
+
+        vm.expectEmit(address(vault));
+        emit CauceVault.PaymentRefunded(keccak256(legacy), payer, 500_000);
+        _settleMinted(500_000, legacy);
+
+        assertEq(vault.balances(payer), 500_000);
+        assertEq(vault.balances(merchant), 0);
+
+        vm.prank(payer);
+        vault.withdraw(500_000);
+        assertEq(usdc.balanceOf(payer), 500_000);
+    }
+
+    // --- Referrals ---
+
+    function test_Referral_SplitsPayment() public {
+        uint256 campaignId = _createCampaign(10, 1_000_000);
+
+        _settle(1_000_000, _referralHookData(campaignId));
+
+        assertEq(vault.balances(merchant), 900_000);
+        assertEq(vault.balances(referrer), 100_000);
+        (,,, uint256 totalRewarded,) = vault.campaigns(campaignId);
+        assertEq(totalRewarded, 100_000);
+    }
+
+    function test_Referral_ClampedToRewardLimit() public {
+        uint256 campaignId = _createCampaign(50, 300_000);
+
+        _settle(1_000_000, _referralHookData(campaignId)); // reward 500k, capped at 300k
+        _settle(1_000_000, _referralHookData(campaignId)); // limit exhausted
+
+        assertEq(vault.balances(referrer), 300_000);
+        assertEq(vault.balances(merchant), 1_700_000);
+    }
+
+    function test_Referral_IgnoredWhenInactive() public {
+        uint256 campaignId = _createCampaign(10, 1_000_000);
         vm.prank(merchant);
         vault.toggleCampaign(campaignId, false);
 
-        (,,,, bool active) = vault.campaigns(campaignId);
-        assertFalse(active);
+        _settle(1_000_000, _referralHookData(campaignId));
+
+        assertEq(vault.balances(merchant), 1_000_000);
+        assertEq(vault.balances(referrer), 0);
     }
 
-    function testUpdateCampaign() public {
-        vm.prank(merchant);
-        uint256 campaignId = vault.createReferralCampaign(10, 1000);
+    function test_Referral_IgnoredForAnotherMerchantsCampaign() public {
+        vm.prank(makeAddr("other-merchant"));
+        uint256 campaignId = vault.createReferralCampaign(50, 1_000_000);
+
+        _settle(1_000_000, _referralHookData(campaignId));
+
+        assertEq(vault.balances(merchant), 1_000_000);
+        assertEq(vault.balances(referrer), 0);
+    }
+
+    // --- Campaign management ---
+
+    function test_CreateCampaign() public {
+        uint256 campaignId = _createCampaign(10, 1000);
+
+        (uint256 pct, address owner, uint256 limit, uint256 rewarded, bool active) = vault.campaigns(campaignId);
+        assertEq(campaignId, 1);
+        assertEq(pct, 10);
+        assertEq(owner, merchant);
+        assertEq(limit, 1000);
+        assertEq(rewarded, 0);
+        assertTrue(active);
+    }
+
+    function test_CreateCampaign_RejectsInvalidSplit() public {
+        vm.expectRevert(CauceVault.CauceVault__InvalidSplit.selector);
+        vault.createReferralCampaign(101, 1000);
+    }
+
+    function test_UpdateCampaign() public {
+        uint256 campaignId = _createCampaign(10, 1000);
 
         vm.prank(merchant);
         vault.updateCampaign(campaignId, 20, 2000);
@@ -74,103 +176,64 @@ contract CauceVaultTest is Test {
         assertEq(limit, 2000);
     }
 
-    function testRevertUpdateCampaignNotOwner() public {
-        vm.prank(merchant);
-        uint256 campaignId = vault.createReferralCampaign(10, 1000);
+    function test_UpdateCampaign_OnlyOwner() public {
+        uint256 campaignId = _createCampaign(10, 1000);
 
+        vm.prank(referrer);
         vm.expectRevert(CauceVault.CauceVault__NotCampaignOwner.selector);
-        vm.prank(referrer); // Wrong user
         vault.updateCampaign(campaignId, 20, 2000);
     }
 
-    function testProcessReferralPayment() public {
-        // Setup campaign
-        vm.prank(merchant);
-        uint256 campaignId = vault.createReferralCampaign(10, 1000 * 10 ** 6); // 10% referral
+    function test_ToggleCampaign_OnlyOwner() public {
+        uint256 campaignId = _createCampaign(10, 1000);
 
-        uint256 amount = 100 * 10 ** 6 + 20000; // 100 USDC + fee
-        string memory orderId = "ORDER-123";
-
-        bytes memory messageBody = _createBurnMessage(amount, merchant, orderId, campaignId, referrer);
-
-        // Relayer calls handleReceiveFinalizedMessage
-        vault.handleReceiveFinalizedMessage(
-            1, // sourceDomain
-            bytes32(0), // sender
-            messageBody
-        );
-
-        // Check balances
-        // Protocol fee: 20000
-        // Net amount: 100 USDC
-        // Referral: 10% of 100 = 10 USDC
-        // Merchant: 90 USDC
-
-        assertEq(vault.merchantBalances(merchant), 90 * 10 ** 6);
-        assertEq(vault.merchantBalances(merchant), 90 * 10 ** 6);
-        assertEq(vault.merchantBalances(referrer), 0); // Not stored in vault anymore
-        assertEq(usdc.balanceOf(referrer), 10 * 10 ** 6); // Received directly
+        vm.prank(referrer);
+        vm.expectRevert(CauceVault.CauceVault__NotCampaignOwner.selector);
+        vault.toggleCampaign(campaignId, false);
     }
 
-    function testReferralCap() public {
-        // Setup campaign with small limit (5 USDC)
-        vm.prank(merchant);
-        uint256 campaignId = vault.createReferralCampaign(10, 5 * 10 ** 6);
+    // --- Direct payments ---
 
-        uint256 amount = 100 * 10 ** 6 + 20000; // 100 USDC + fee
-        // 10% would be 10 USDC, but limit is 5.
+    function test_Pay_Direct() public {
+        usdc.mint(payer, 2_000_000);
+        vm.startPrank(payer);
+        usdc.approve(address(vault), 2_000_000);
+        vault.pay(2_000_000, _hookData("direct-1"));
+        vm.stopPrank();
 
-        bytes memory messageBody = _createBurnMessage(amount, merchant, "ORDER-CAP", campaignId, referrer);
-
-        vault.handleReceiveFinalizedMessage(1, bytes32(0), messageBody);
-
-        assertEq(vault.merchantBalances(referrer), 0);
-        assertEq(usdc.balanceOf(referrer), 5 * 10 ** 6); // Capped at 5 received directly
-        assertEq(vault.merchantBalances(merchant), 95 * 10 ** 6); // 100 - 5
+        assertEq(vault.balances(merchant), 2_000_000);
+        assertEq(usdc.balanceOf(address(vault)), 2_000_000);
     }
 
-    function testInactiveCampaign() public {
-        vm.prank(merchant);
-        uint256 campaignId = vault.createReferralCampaign(10, 1000 * 10 ** 6);
-        vm.prank(merchant);
-        vault.toggleCampaign(campaignId, false); // Deactivate
-
-        uint256 amount = 100 * 10 ** 6 + 20000;
-
-        bytes memory messageBody = _createBurnMessage(amount, merchant, "ORDER-INACTIVE", campaignId, referrer);
-
-        vault.handleReceiveFinalizedMessage(1, bytes32(0), messageBody);
-
-        assertEq(vault.merchantBalances(referrer), 0);
-        assertEq(vault.merchantBalances(merchant), 100 * 10 ** 6); // Full amount
+    function test_Pay_RevertsOnInvalidHookData() public {
+        vm.prank(payer);
+        vm.expectRevert(CauceVault.CauceVault__InvalidHookData.selector);
+        vault.pay(1, abi.encode(merchant, "order-1"));
     }
 
-    // --- Helpers ---
+    function test_Pay_RevertsOnZeroAmount() public {
+        vm.prank(payer);
+        vm.expectRevert(CauceVault.CauceVault__InvalidAmount.selector);
+        vault.pay(0, _hookData("direct-1"));
+    }
 
-    function _createBurnMessage(
-        uint256 amount,
-        address _merchant,
-        string memory _orderId,
-        uint256 _campaignId,
-        address _referrer
-    ) internal pure returns (bytes memory) {
-        // BurnMessage format construction
-        // 0-68: Header/padding (we just need amount at 68)
-        // 68: Amount (32 bytes)
-        // 100-228: Padding/other fields
-        // 228: Hook Data
+    // --- Withdrawals ---
 
-        bytes memory prefix = new bytes(68);
-        bytes memory amountBytes = abi.encode(amount);
-        bytes memory middle = new bytes(228 - (68 + 32));
+    function test_Withdraw() public {
+        _settle(1_000_000, _hookData("order-1"));
 
-        bytes memory hookData;
-        if (_campaignId > 0) {
-            hookData = abi.encode(_merchant, _orderId, _campaignId, _referrer);
-        } else {
-            hookData = abi.encode(_merchant, _orderId);
-        }
+        vm.prank(merchant);
+        vault.withdraw(400_000);
 
-        return abi.encodePacked(prefix, amountBytes, middle, hookData);
+        assertEq(usdc.balanceOf(merchant), 400_000);
+        assertEq(vault.balances(merchant), 600_000);
+    }
+
+    function test_Withdraw_RevertsAboveBalance() public {
+        _settle(1_000_000, _hookData("order-1"));
+
+        vm.prank(merchant);
+        vm.expectRevert(CauceVault.CauceVault__InsufficientBalance.selector);
+        vault.withdraw(1_000_001);
     }
 }

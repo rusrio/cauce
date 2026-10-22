@@ -2,16 +2,9 @@
 pragma solidity ^0.8.26;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {ICauceVault} from "./interfaces/ICauceVault.sol";
 import {IMessageTransmitterV2} from "./interfaces/IMessageTransmitterV2.sol";
 import {CctpMessage} from "./libraries/CctpMessage.sol";
-
-interface ICauceVault {
-    function USDC() external view returns (IERC20);
-
-    function handleReceiveFinalizedMessage(uint32 sourceDomain, bytes32 sender, bytes calldata messageBody)
-        external
-        returns (bool);
-}
 
 /// @title CauceRelay
 /// @notice Receives CCTP V2 burn messages addressed to the CauceVault and settles them.
@@ -40,7 +33,6 @@ contract CauceRelay {
     error CauceRelay__FeeExceedsAmount();
     error CauceRelay__ReceiveMessageFailed();
     error CauceRelay__UnexpectedMintAmount(uint256 expected, uint256 actual);
-    error CauceRelay__HookCallFailed();
 
     // --- Constructor ---
     constructor(address _messageTransmitter, address _tokenMessenger, address _cauceVault) {
@@ -88,12 +80,13 @@ contract CauceRelay {
         uint256 minted = USDC.balanceOf(address(CAUCE_VAULT)) - balanceBefore;
         if (minted != expectedMint) revert CauceRelay__UnexpectedMintAmount(expectedMint, minted);
 
+        bytes32 messageHash = keccak256(message);
         uint32 sourceDomain = message.sourceDomain();
-        if (!CAUCE_VAULT.handleReceiveFinalizedMessage(sourceDomain, message.sender(), body)) {
-            revert CauceRelay__HookCallFailed();
-        }
+        // EVM source chains only: messageSender is the burner's address left-padded to 32 bytes.
+        address payer = address(uint160(uint256(body.messageSender())));
+        CAUCE_VAULT.settle(sourceDomain, messageHash, payer, minted, body.hookData());
 
-        emit PaymentRelayed(keccak256(message), sourceDomain, message.nonce(), minted);
+        emit PaymentRelayed(messageHash, sourceDomain, message.nonce(), minted);
         return true;
     }
 }
