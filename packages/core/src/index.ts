@@ -28,5 +28,20 @@ export {
   type DecodedHookData,
   type HookDataInput,
 } from './hook-data';
+export {
+  createIrisClient,
+  DEFAULT_ATTESTATION_POLL_INTERVAL_MS,
+  DEFAULT_ATTESTATION_TIMEOUT_MS,
+  DEFAULT_IRIS_TIMEOUT_MS,
+  type AttestedMessage,
+  type GetMessagesQuery,
+  type IrisBurnFee,
+  type IrisClient,
+  type IrisClientOptions,
+  type IrisMessage,
+  type IrisMessageStatus,
+  type WaitForAttestationQuery,
+} from './iris';
 export { silentLogger, type CauceLogger } from './logger';
+export { defaultRetryOptions, type RetryOptions } from './retry';
 export type { CaucePaymentRequest, CauceReferral, PaymentRoute } from './types';
