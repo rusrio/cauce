@@ -1,0 +1,10 @@
+pnpm-lock.yaml
+dist/
+coverage/
+.turbo/
+.changeset/*.md
+contracts/lib/
+contracts/out/
+contracts/cache/
+contracts/broadcast/
+packages/core/src/abis/generated.ts
