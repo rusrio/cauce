@@ -1,0 +1,61 @@
+{
+  "name": "@cauce/core",
+  "version": "0.0.0",
+  "description": "Framework-agnostic core of Cauce: multichain USDC payments over Circle CCTP V2 that settle in one place.",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rusrio/cauce.git",
+    "directory": "packages/core"
+  },
+  "keywords": [
+    "cauce",
+    "usdc",
+    "cctp",
+    "circle",
+    "payments",
+    "cross-chain",
+    "viem"
+  ],
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "generate:abis": "wagmi generate && prettier --write src/abis/generated.ts"
+  },
+  "peerDependencies": {
+    "viem": "^2.30.0"
+  },
+  "devDependencies": {
+    "@wagmi/cli": "^2.10.0",
+    "esbuild": "^0.28.2",
+    "tsup": "^9.0.0",
+    "typescript": "~6.0.3",
+    "viem": "^2.57.10",
+    "vitest": "^5.0.5"
+  }
+}
