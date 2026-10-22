@@ -79,7 +79,30 @@ export {
   type CauceEnvironment,
   type CctpChainPreset,
 } from './presets';
+export {
+  createRelayerClient,
+  DEFAULT_RELAY_POLL_INTERVAL_MS,
+  DEFAULT_RELAY_TIMEOUT_MS,
+  type RelayerClient,
+  type RelayerClientOptions,
+  type RelayRequest,
+  type RelayStatus,
+  type RelayStatusResponse,
+  type WaitForSettlementOptions,
+} from './relayer-client';
 export { defaultRetryOptions, type RetryOptions } from './retry';
+export {
+  createPaymentSession,
+  type CaucePaymentSession,
+  type PaymentOperationOptions,
+  type PaymentSessionDeps,
+} from './session';
+export {
+  createMemoryPendingStore,
+  deserializePendingPayment,
+  serializePendingPayment,
+  type PendingPaymentStore,
+} from './store';
 export { formatUsdc, parseUsdc, USDC_DECIMALS } from './usdc';
 export type {
   CaucePaymentRequest,

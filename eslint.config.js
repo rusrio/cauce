@@ -28,6 +28,8 @@ export default tseslint.config(
     files: ['**/*.test.ts'],
     rules: {
       '@typescript-eslint/no-non-null-assertion': 'off',
+      // False positives on `expect(object.method)` with vitest mocks.
+      '@typescript-eslint/unbound-method': 'off',
     },
   },
   {
