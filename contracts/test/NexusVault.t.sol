@@ -78,7 +78,7 @@ contract NexusVaultTest is Test {
         vm.prank(merchant);
         uint256 campaignId = vault.createReferralCampaign(10, 1000);
         
-        vm.expectRevert("Not campaign owner");
+        vm.expectRevert(NexusVault.NexusVault__NotCampaignOwner.selector);
         vm.prank(referrer); // Wrong user
         vault.updateCampaign(campaignId, 20, 2000);
     }
