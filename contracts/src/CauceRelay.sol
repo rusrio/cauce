@@ -1,171 +1,99 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.26;
 
-interface IMessageTransmitter {
-    function receiveMessage(bytes calldata message, bytes calldata attestation) 
-        external 
-        returns (bool success);
-}
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IMessageTransmitterV2} from "./interfaces/IMessageTransmitterV2.sol";
+import {CctpMessage} from "./libraries/CctpMessage.sol";
 
 interface ICauceVault {
-    function handleReceiveFinalizedMessage(
-        uint32 sourceDomain,
-        bytes32 sender,
-        bytes calldata messageBody
-    ) external returns (bool);
+    function USDC() external view returns (IERC20);
+
+    function handleReceiveFinalizedMessage(uint32 sourceDomain, bytes32 sender, bytes calldata messageBody)
+        external
+        returns (bool);
 }
 
+/// @title CauceRelay
+/// @notice Receives CCTP V2 burn messages addressed to the CauceVault and settles them.
+/// @dev A message is only accepted if it is a genuine USDC burn (handled by the local
+///      TokenMessengerV2), minted to the vault, and reserved for this relay as destination
+///      caller. The vault's USDC balance must grow by exactly `amount - feeExecuted`.
 contract CauceRelay {
+    using CctpMessage for bytes;
+
     // --- State Variables ---
-    IMessageTransmitter public immutable MESSAGE_TRANSMITTER;
+    IMessageTransmitterV2 public immutable MESSAGE_TRANSMITTER;
+    address public immutable TOKEN_MESSENGER;
     ICauceVault public immutable CAUCE_VAULT;
+    IERC20 public immutable USDC;
+    uint32 public immutable LOCAL_DOMAIN;
 
     // --- Events ---
-    event PaymentRelayed(
-        bytes32 indexed messageHash,
-        address indexed merchant,
-        uint256 amount,
-        uint32 sourceDomain
-    );
+    event PaymentRelayed(bytes32 indexed messageHash, uint32 indexed sourceDomain, bytes32 nonce, uint256 amount);
 
     // --- Errors ---
+    error CauceRelay__ZeroAddress();
+    error CauceRelay__WrongDestinationDomain(uint32 domain);
+    error CauceRelay__WrongRecipient(bytes32 recipient);
+    error CauceRelay__WrongDestinationCaller(bytes32 destinationCaller);
+    error CauceRelay__WrongMintRecipient(bytes32 mintRecipient);
+    error CauceRelay__FeeExceedsAmount();
     error CauceRelay__ReceiveMessageFailed();
+    error CauceRelay__UnexpectedMintAmount(uint256 expected, uint256 actual);
     error CauceRelay__HookCallFailed();
-    error CauceRelay__InvalidMessageLength();
 
     // --- Constructor ---
-    constructor(address _messageTransmitter, address _cauceVault) {
-        MESSAGE_TRANSMITTER = IMessageTransmitter(_messageTransmitter);
+    constructor(address _messageTransmitter, address _tokenMessenger, address _cauceVault) {
+        if (_messageTransmitter == address(0) || _tokenMessenger == address(0) || _cauceVault == address(0)) {
+            revert CauceRelay__ZeroAddress();
+        }
+        MESSAGE_TRANSMITTER = IMessageTransmitterV2(_messageTransmitter);
+        TOKEN_MESSENGER = _tokenMessenger;
         CAUCE_VAULT = ICauceVault(_cauceVault);
+        USDC = ICauceVault(_cauceVault).USDC();
+        LOCAL_DOMAIN = IMessageTransmitterV2(_messageTransmitter).localDomain();
     }
 
+    /// @notice Receives an attested CCTP message and settles the payment in the vault.
+    /// @dev Permissionless: anyone holding the message and attestation may relay it.
+    function relayPayment(bytes calldata message, bytes calldata attestation) external returns (bool) {
+        message.validateLength();
 
-    function relayPayment(
-        bytes calldata message,
-        bytes calldata attestation
-    ) external returns (bool success) {
+        uint32 destinationDomain = message.destinationDomain();
+        if (destinationDomain != LOCAL_DOMAIN) revert CauceRelay__WrongDestinationDomain(destinationDomain);
 
-        bool receiveSuccess = MESSAGE_TRANSMITTER.receiveMessage(message, attestation);
-        if (!receiveSuccess) {
-            revert CauceRelay__ReceiveMessageFailed();
+        // Only burn messages handled by the local TokenMessenger mint real USDC. Anyone can send
+        // a generic CCTP message with a forged BurnMessage-shaped body to another recipient.
+        bytes32 recipient = message.recipient();
+        if (recipient != CctpMessage.toBytes32(TOKEN_MESSENGER)) revert CauceRelay__WrongRecipient(recipient);
+
+        bytes32 destinationCaller = message.destinationCaller();
+        if (destinationCaller != CctpMessage.toBytes32(address(this))) {
+            revert CauceRelay__WrongDestinationCaller(destinationCaller);
         }
 
-        (
-            uint32 sourceDomain,
-            bytes32 sender,
-            /*uint32 finalityThresholdExecuted*/,
-            bytes memory messageBody
-        ) = _parseCCTPMessage(message);
+        bytes calldata body = message.body();
+        bytes32 mintRecipient = body.mintRecipient();
+        if (mintRecipient != CctpMessage.toBytes32(address(CAUCE_VAULT))) {
+            revert CauceRelay__WrongMintRecipient(mintRecipient);
+        }
 
-        bool hookSuccess = CAUCE_VAULT.handleReceiveFinalizedMessage(
-            sourceDomain,
-            sender,
-            messageBody
-        );
+        uint256 amount = body.amount();
+        uint256 fee = body.feeExecuted();
+        if (fee > amount) revert CauceRelay__FeeExceedsAmount();
+        uint256 expectedMint = amount - fee;
 
-        if (!hookSuccess) {
+        uint256 balanceBefore = USDC.balanceOf(address(CAUCE_VAULT));
+        if (!MESSAGE_TRANSMITTER.receiveMessage(message, attestation)) revert CauceRelay__ReceiveMessageFailed();
+        uint256 minted = USDC.balanceOf(address(CAUCE_VAULT)) - balanceBefore;
+        if (minted != expectedMint) revert CauceRelay__UnexpectedMintAmount(expectedMint, minted);
+
+        uint32 sourceDomain = message.sourceDomain();
+        if (!CAUCE_VAULT.handleReceiveFinalizedMessage(sourceDomain, message.sender(), body)) {
             revert CauceRelay__HookCallFailed();
         }
 
-        bytes32 messageHash = keccak256(message);
-        
-        uint256 amount = _extractAmountFromBurnMessage(messageBody);
-        address merchant = _extractMerchantFromHookData(messageBody);
-        
-        emit PaymentRelayed(messageHash, merchant, amount, sourceDomain);
-
+        emit PaymentRelayed(keccak256(message), sourceDomain, message.nonce(), minted);
         return true;
-    }
-
-    /**
-     * @notice Parses CCTP V2 message format to extract key parameters
-     * @dev CCTP V2 Message Structure (148+ bytes):
-     *      - 0-4:   version (4 bytes)
-     *      - 4-8:   sourceDomain (4 bytes)
-     *      - 8-12:  destinationDomain (4 bytes)
-     *      - 12-44: nonce (32 bytes)
-     *      - 44-76: sender (32 bytes)
-     *      - 76-108: recipient (32 bytes)
-     *      - 108-140: destinationCaller (32 bytes)
-     *      - 140-144: minFinalityThreshold (4 bytes)
-     *      - 144-148: finalityThresholdExecuted (4 bytes)
-     *      - 148+:  messageBody (variable length - BurnMessage)
-     * @param message The full CCTP message
-     * @return sourceDomain The source blockchain domain ID
-     * @return sender The address that initiated the burn (as bytes32)
-     * @return finalityThresholdExecuted The finality threshold used
-     * @return messageBody The BurnMessage payload
-     */
-    function _parseCCTPMessage(bytes calldata message)
-        internal
-        pure
-        returns (
-            uint32 sourceDomain,
-            bytes32 sender,
-            uint32 finalityThresholdExecuted,
-            bytes memory messageBody
-        )
-    {
-        // Validate minimum message length (148 bytes header + some messageBody)
-        if (message.length < 148) {
-            revert CauceRelay__InvalidMessageLength();
-        }
-
-        // Extract sourceDomain (offset 4, 4 bytes)
-        sourceDomain = uint32(bytes4(message[4:8]));
-
-        // Extract sender (offset 44, 32 bytes)
-        sender = bytes32(message[44:76]);
-
-        // Extract finalityThresholdExecuted (offset 144, 4 bytes)
-        finalityThresholdExecuted = uint32(bytes4(message[144:148]));
-
-        // Extract messageBody (offset 148 to end)
-        messageBody = message[148:];
-    }
-
-    function _extractAmountFromBurnMessage(bytes memory messageBody) 
-        internal 
-        pure 
-        returns (uint256 amount) 
-    {
-        if (messageBody.length < 100) {
-            return 0; // Return 0 if message is too short
-        }
-        
-        // Amount is at offset 68 in BurnMessage
-        assembly {
-            amount := mload(add(add(messageBody, 0x20), 68))
-        }
-    }
-
-    function _extractMerchantFromHookData(bytes memory messageBody) 
-        internal 
-        pure 
-        returns (address merchant) 
-    {
-        if (messageBody.length <= 228) {
-            return address(0); // Return zero address if no hookData
-        }
-
-        // Extract hookData (everything after offset 228)
-        bytes memory hookData = new bytes(messageBody.length - 228);
-        for (uint256 i = 0; i < hookData.length; i++) {
-            hookData[i] = messageBody[228 + i];
-        }
-
-        // Decode hookData: abi.encode(address merchant, string orderId)
-        // First 32 bytes contain the address (padded)
-        if (hookData.length >= 32) {
-            (merchant,) = abi.decode(hookData, (address, string));
-        }
-    }
-
-    function getConfiguration() 
-        external 
-        view 
-        returns (address messageTransmitter, address cauceVault) 
-    {
-        return (address(MESSAGE_TRANSMITTER), address(CAUCE_VAULT));
     }
 }

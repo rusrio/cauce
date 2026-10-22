@@ -31,3 +31,20 @@ jobs:
       - if: matrix.task == 'lint'
         run: pnpm format:check
       - run: pnpm turbo run ${{ matrix.task }}
+
+  contracts:
+    name: contracts
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: contracts
+    env:
+      FOUNDRY_PROFILE: ci
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: true
+      - uses: foundry-rs/foundry-toolchain@v1
+      - run: forge fmt --check
+      - run: forge build --sizes
+      - run: forge test
