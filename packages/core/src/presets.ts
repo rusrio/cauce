@@ -7,7 +7,7 @@
  * - USDC: https://developers.circle.com/stablecoins/usdc-contract-addresses
  * - Cauce deployments: broadcast output of contracts/script/DeployCauce.s.sol
  */
-import type { Address } from 'viem';
+import type { Address, Chain } from 'viem';
 import {
   arbitrum,
   arbitrumSepolia,
@@ -104,7 +104,10 @@ export const cctpPresets: Readonly<
 });
 
 /** Where payments settle by default in each environment. */
-export const settlementChains = Object.freeze({ testnet: arcTestnet, mainnet: arc });
+export const settlementChains: Readonly<Record<CauceEnvironment, Chain>> = Object.freeze({
+  testnet: arcTestnet,
+  mainnet: arc,
+});
 
 /**
  * Official Cauce deployments. Environments without an entry require `settlement.vault` and
