@@ -1,4 +1,5 @@
 export { DEFAULT_RELAYER_KEY_VARIABLE, relayerAccountFromEnv } from './env';
+export { createRelayHandler, type RelayHandler, type RelayHandlerOptions } from './handler';
 export {
   createCauceRelayer,
   DEFAULT_CLAIM_TIMEOUT_MS,

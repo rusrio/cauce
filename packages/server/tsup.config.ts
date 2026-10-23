@@ -1,9 +1,9 @@
 import { defineConfig } from 'tsup';
 
 export default defineConfig({
-  entry: ['src/index.ts', 'src/browser.ts'],
+  entry: ['src/index.ts', 'src/next.ts', 'src/browser.ts'],
   format: ['esm', 'cjs'],
-  dts: { entry: ['src/index.ts'] },
+  dts: { entry: ['src/index.ts', 'src/next.ts'] },
   sourcemap: true,
   clean: true,
   target: 'es2022',
