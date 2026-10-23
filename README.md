@@ -8,9 +8,8 @@ supported by [Circle CCTP V2](https://developers.circle.com/cctp), and the merch
 single settlement chain ([Arc](https://www.arc.io)), credited in one vault, with one balance to
 withdraw.
 
-> **Status: Phase 3, testnet only, unaudited.** `@cauce/core`, `@cauce/server`, `@cauce/react`,
-> `@cauce/ui` and the hardened contracts are ready; the demo shop is next. Do not use with real
-> funds.
+> **Status: testnet only, unaudited.** `@cauce/core`, `@cauce/server`, `@cauce/react`,
+> `@cauce/ui` and the hardened contracts are ready. Do not use with real funds.
 
 ## How a payment flows
 
@@ -47,7 +46,6 @@ client code or props.
 | [`@cauce/server`](packages/server) | ✅ Phase 2 | Idempotent relayer: Fetch API handler + Next.js adapter, key from a server env var                                                 |
 | [`@cauce/react`](packages/react)   | ✅ Phase 3 | Hooks over core (`useCaucePayment`, pending payments, quotes) and a headless `<CauceCheckout>`; React 18/19, wagmi 3               |
 | [`@cauce/ui`](packages/ui)         | ✅ Phase 3 | Accessible, themable `<CaucePayment />` driven by `--cauce-*` CSS variables                                                        |
-| `apps/demo-shop`                   | 🔜 Phase 4 | Example Next.js store                                                                                                              |
 | [`contracts/`](contracts)          | ✅ Phase 1 | `CauceVault` and `CauceRelay` (Foundry); ABIs generated into core with the wagmi CLI                                               |
 
 ## Using `@cauce/core`
