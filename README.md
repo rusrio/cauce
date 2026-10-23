@@ -8,8 +8,8 @@ supported by [Circle CCTP V2](https://developers.circle.com/cctp), and the merch
 single settlement chain ([Arc](https://www.arc.io)), credited in one vault, with one balance to
 withdraw.
 
-> **Status: Phase 1, testnet only, unaudited.** `@cauce/core` and the hardened contracts are
-> ready; `@cauce/server`, `@cauce/react`, `@cauce/ui` and the demo shop are next. Do not use with
+> **Status: Phase 2, testnet only, unaudited.** `@cauce/core`, `@cauce/server` and the hardened
+> contracts are ready; `@cauce/react`, `@cauce/ui` and the demo shop are next. Do not use with
 > real funds.
 
 ## How a payment flows
@@ -41,14 +41,14 @@ client code or props.
 
 ## Packages
 
-| Package                        | Status     | Purpose                                                                                                                            |
-| ------------------------------ | ---------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| [`@cauce/core`](packages/core) | ✅ Phase 1 | Framework-agnostic TypeScript (only depends on viem): config, chain presets, state machine, Iris client, hookData, payment session |
-| `@cauce/server`                | 🔜 Phase 2 | Idempotent relayer: framework-agnostic HTTP handler + Next.js adapter                                                              |
-| `@cauce/react`                 | 🔜 Phase 3 | Thin hooks over core (`useCaucePayment`) and a headless `<CauceCheckout>`                                                          |
-| `@cauce/ui`                    | 🔜 Phase 3 | Styled `<CaucePayment />`, themable through `--cauce-*` CSS variables                                                              |
-| `apps/demo-shop`               | 🔜 Phase 4 | Example Next.js store                                                                                                              |
-| [`contracts/`](contracts)      | ✅ Phase 1 | `CauceVault` and `CauceRelay` (Foundry); ABIs generated into core with the wagmi CLI                                               |
+| Package                            | Status     | Purpose                                                                                                                            |
+| ---------------------------------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| [`@cauce/core`](packages/core)     | ✅ Phase 1 | Framework-agnostic TypeScript (only depends on viem): config, chain presets, state machine, Iris client, hookData, payment session |
+| [`@cauce/server`](packages/server) | ✅ Phase 2 | Idempotent relayer: Fetch API handler + Next.js adapter, key from a server env var                                                 |
+| `@cauce/react`                     | 🔜 Phase 3 | Thin hooks over core (`useCaucePayment`) and a headless `<CauceCheckout>`                                                          |
+| `@cauce/ui`                        | 🔜 Phase 3 | Styled `<CaucePayment />`, themable through `--cauce-*` CSS variables                                                              |
+| `apps/demo-shop`                   | 🔜 Phase 4 | Example Next.js store                                                                                                              |
+| [`contracts/`](contracts)          | ✅ Phase 1 | `CauceVault` and `CauceRelay` (Foundry); ABIs generated into core with the wagmi CLI                                               |
 
 ## Using `@cauce/core`
 
@@ -154,6 +154,7 @@ pnpm typecheck    # tsc --noEmit, strict + noUncheckedIndexedAccess + exactOptio
 pnpm format       # Prettier
 
 cd contracts && forge test   # Foundry tests, including regressions for the NexusPay exploits
+pnpm turbo run test:e2e      # relayer against anvil + compiled contracts (after forge build)
 ```
 
 After changing `contracts/src`, regenerate the ABIs consumed by core. CI fails if they drift:
@@ -166,7 +167,8 @@ Every change to a published package needs a changeset (`pnpm changeset`). Commit
 [Conventional Commits](https://www.conventionalcommits.org).
 
 CI (GitHub Actions) runs lint, typecheck, test and build on Node 24. A separate `contracts` job
-runs `forge fmt --check`, `forge build`, `forge test` and the ABI drift check.
+runs `forge fmt --check`, `forge build`, `forge test`, the relayer end-to-end tests on anvil and
+the ABI drift check.
 
 ### Repository layout
 
