@@ -54,6 +54,10 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Relayer end-to-end tests (anvil + compiled contracts)
+        run: pnpm turbo run test:e2e
+        env:
+          CAUCE_E2E: '1'
       - name: Check generated ABIs are up to date
         run: |
           pnpm --filter @cauce/core generate:abis
