@@ -43,12 +43,12 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # @cauce/react supports React 18 and 19; the workspace develops against 19.
-      - name: Install React 18 in @cauce/react
-        run: pnpm --filter @cauce/react add -D react@^18.3.1 react-dom@^18.3.1 @types/react@^18.3.0 @types/react-dom@^18.3.0
-      - run: pnpm turbo run build --filter=@cauce/core
-      - run: pnpm --filter @cauce/react typecheck
-      - run: pnpm --filter @cauce/react test
+      # @cauce/react and @cauce/ui support React 18 and 19; the workspace develops against 19.
+      - name: Install React 18
+        run: pnpm --filter @cauce/react --filter @cauce/ui add -D react@^18.3.1 react-dom@^18.3.1 @types/react@^18.3.0 @types/react-dom@^18.3.0
+      - run: pnpm turbo run build --filter=@cauce/react
+      - run: pnpm --filter @cauce/react --filter @cauce/ui typecheck
+      - run: pnpm --filter @cauce/react --filter @cauce/ui test
 
   contracts:
     name: contracts
