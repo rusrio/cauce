@@ -74,8 +74,13 @@ export const DEFAULT_ATTESTATION_POLL_INTERVAL_MS = 3_000;
 export const DEFAULT_ATTESTATION_TIMEOUT_MS = 30 * 60_000;
 
 /** Client for Circle's Iris attestation API (CCTP V2 endpoints). */
+/** Iris options where `retry` may override only some fields of the defaults. */
+export type IrisClientOverrides = Partial<Omit<IrisClientOptions, 'retry'>> & {
+  retry?: Partial<RetryOptions>;
+};
+
 export function createIrisClient(
-  options: Partial<IrisClientOptions> & Pick<IrisClientOptions, 'baseUrl'>,
+  options: IrisClientOverrides & Pick<IrisClientOptions, 'baseUrl'>,
 ): IrisClient {
   const baseUrl = options.baseUrl.replace(/\/+$/, '');
   const http = {

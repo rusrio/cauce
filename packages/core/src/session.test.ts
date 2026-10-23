@@ -293,6 +293,60 @@ describe('PaymentSession — direct route', () => {
   });
 });
 
+describe('PaymentSession — without a wallet', () => {
+  it('resumes a pending payment with only the relayer', async () => {
+    const { store, relayer } = setup();
+    const pending = {
+      burnTxHash: txHash(2),
+      sourceDomain: 6,
+      createdAt: 0,
+      ctx: {
+        request,
+        quote: {
+          route: 'cctp' as const,
+          amount: request.amount,
+          maxFee,
+          total: request.amount + maxFee,
+          minFinalityThreshold: 1000 as const,
+        },
+        sourceChainId: baseSepolia.id,
+        payer,
+      },
+    };
+    await store.put(pending);
+    const walletless = createPaymentSession(
+      createCauceConfig({
+        environment: 'testnet',
+        chains: [baseSepolia],
+        relayerUrl: 'https://relayer.dev',
+        settlement: { vault, relay },
+      }),
+      { store, relayer },
+    );
+
+    await expect(walletless.resume(pending)).resolves.toMatchObject({
+      status: 'settled',
+      settlementTxHash,
+    });
+    expect(await store.list()).toEqual([]);
+  });
+
+  it('refuses to pay without a wallet', async () => {
+    const walletless = createPaymentSession(
+      createCauceConfig({
+        environment: 'testnet',
+        chains: [baseSepolia],
+        relayerUrl: 'https://relayer.dev',
+        settlement: { vault, relay },
+      }),
+      {},
+    );
+
+    await expect(walletless.pay(request)).rejects.toMatchObject({ code: 'WALLET_NOT_CONNECTED' });
+    expect(walletless.getState().status).toBe('idle');
+  });
+});
+
 describe('PaymentSession — guards', () => {
   it('validates the request before touching the wallet', async () => {
     const { session, walletClient } = setup();

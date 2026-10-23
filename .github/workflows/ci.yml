@@ -32,6 +32,24 @@ jobs:
         run: pnpm format:check
       - run: pnpm turbo run ${{ matrix.task }}
 
+  react18:
+    name: react 18
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # @cauce/react and @cauce/ui support React 18 and 19; the workspace develops against 19.
+      - name: Install React 18
+        run: pnpm --filter @cauce/react --filter @cauce/ui add -D react@^18.3.1 react-dom@^18.3.1 @types/react@^18.3.0 @types/react-dom@^18.3.0
+      - run: pnpm turbo run build --filter=@cauce/react
+      - run: pnpm --filter @cauce/react --filter @cauce/ui typecheck
+      - run: pnpm --filter @cauce/react --filter @cauce/ui test
+
   contracts:
     name: contracts
     runs-on: ubuntu-latest

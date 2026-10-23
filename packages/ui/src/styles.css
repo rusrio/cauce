@@ -1,0 +1,362 @@
+/*
+ * @cauce/ui — import once: `import '@cauce/ui/styles.css'`.
+ * Theme by overriding the --cauce-* variables on .cauce-payment (or any ancestor).
+ */
+.cauce-payment {
+  --cauce-font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --cauce-font-size: 15px;
+  --cauce-radius: 14px;
+  --cauce-radius-control: 10px;
+  --cauce-spacing: 16px;
+  --cauce-max-width: 400px;
+  --cauce-color-bg: #ffffff;
+  --cauce-color-surface: #f5f7fa;
+  --cauce-color-fg: #111827;
+  --cauce-color-muted: #6b7280;
+  --cauce-color-border: #e5e7eb;
+  --cauce-color-accent: #2563eb;
+  --cauce-color-accent-fg: #ffffff;
+  --cauce-color-success: #059669;
+  --cauce-color-danger: #dc2626;
+  --cauce-color-focus: #93c5fd;
+  --cauce-shadow: 0 1px 2px rgb(0 0 0 / 0.04), 0 8px 24px rgb(0 0 0 / 0.06);
+
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cauce-spacing);
+  width: 100%;
+  max-width: var(--cauce-max-width);
+  padding: calc(var(--cauce-spacing) * 1.5);
+  border: 1px solid var(--cauce-color-border);
+  border-radius: var(--cauce-radius);
+  background: var(--cauce-color-bg);
+  box-shadow: var(--cauce-shadow);
+  color: var(--cauce-color-fg);
+  font-family: var(--cauce-font-family);
+  font-size: var(--cauce-font-size);
+  line-height: 1.45;
+}
+
+.cauce-payment *,
+.cauce-payment *::before,
+.cauce-payment *::after {
+  box-sizing: inherit;
+}
+
+@media (prefers-color-scheme: dark) {
+  .cauce-payment:not([data-cauce-theme='light']) {
+    --cauce-color-bg: #111318;
+    --cauce-color-surface: #1b1e25;
+    --cauce-color-fg: #f3f4f6;
+    --cauce-color-muted: #9ca3af;
+    --cauce-color-border: #2a2f3a;
+    --cauce-color-accent: #3b82f6;
+    --cauce-color-success: #34d399;
+    --cauce-color-danger: #f87171;
+    --cauce-color-focus: #1d4ed8;
+    --cauce-shadow: none;
+  }
+}
+
+.cauce-payment[data-cauce-theme='dark'] {
+  --cauce-color-bg: #111318;
+  --cauce-color-surface: #1b1e25;
+  --cauce-color-fg: #f3f4f6;
+  --cauce-color-muted: #9ca3af;
+  --cauce-color-border: #2a2f3a;
+  --cauce-color-accent: #3b82f6;
+  --cauce-color-success: #34d399;
+  --cauce-color-danger: #f87171;
+  --cauce-color-focus: #1d4ed8;
+  --cauce-shadow: none;
+}
+
+.cauce-title {
+  margin: 0;
+  font-size: 1.05em;
+  font-weight: 600;
+}
+
+.cauce-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--cauce-color-muted);
+  font-size: 0.8em;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.cauce-amount-field {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 10px 14px;
+  border: 1px solid var(--cauce-color-border);
+  border-radius: var(--cauce-radius-control);
+  background: var(--cauce-color-surface);
+}
+
+.cauce-amount-field:focus-within {
+  outline: 3px solid var(--cauce-color-focus);
+  outline-offset: 1px;
+}
+
+.cauce-input,
+.cauce-amount-value {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 1.9em;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.cauce-input:focus {
+  outline: none;
+}
+
+.cauce-input[aria-invalid='true'] {
+  color: var(--cauce-color-danger);
+}
+
+.cauce-currency {
+  color: var(--cauce-color-muted);
+  font-weight: 600;
+}
+
+.cauce-field-error,
+.cauce-error {
+  margin: 6px 0 0;
+  color: var(--cauce-color-danger);
+  font-size: 0.875em;
+}
+
+.cauce-quote {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  color: var(--cauce-color-muted);
+  font-size: 0.875em;
+  list-style: none;
+}
+
+.cauce-quote-total {
+  color: var(--cauce-color-fg);
+  font-weight: 600;
+}
+
+.cauce-steps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cauce-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  color: var(--cauce-color-muted);
+  font-size: 0.8em;
+  font-weight: 600;
+}
+
+.cauce-step-marker {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 2px solid var(--cauce-color-border);
+  border-radius: 50%;
+  background: var(--cauce-color-bg);
+}
+
+.cauce-step[data-state='active'] {
+  color: var(--cauce-color-fg);
+}
+
+.cauce-step[data-state='active'] .cauce-step-marker {
+  border-color: var(--cauce-color-accent);
+  border-top-color: transparent;
+  animation: cauce-spin 0.9s linear infinite;
+}
+
+.cauce-step[data-state='done'] {
+  color: var(--cauce-color-fg);
+}
+
+.cauce-step[data-state='done'] .cauce-step-marker {
+  border-color: var(--cauce-color-success);
+  background: var(--cauce-color-success);
+}
+
+.cauce-step[data-state='error'] .cauce-step-marker {
+  border-color: var(--cauce-color-danger);
+  background: var(--cauce-color-danger);
+}
+
+/* Shape cues so progress does not rely on color alone; decorative for screen readers. */
+.cauce-step[data-state='done'] .cauce-step-marker::after,
+.cauce-step[data-state='error'] .cauce-step-marker::after {
+  color: var(--cauce-color-bg);
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.cauce-step[data-state='done'] .cauce-step-marker::after {
+  content: '✓' / '';
+}
+
+.cauce-step[data-state='error'] .cauce-step-marker::after {
+  content: '!' / '';
+}
+
+.cauce-status {
+  min-height: 1.45em;
+  margin: 0;
+  color: var(--cauce-color-muted);
+  font-size: 0.9em;
+  text-align: center;
+}
+
+/* Keep the live region in the accessibility tree, but take it out of the layout when empty. */
+.cauce-status:empty {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.cauce-payment[data-status='settled'] .cauce-status {
+  color: var(--cauce-color-success);
+  font-weight: 600;
+}
+
+.cauce-receipt {
+  color: var(--cauce-color-accent);
+  font-size: 0.9em;
+  text-align: center;
+}
+
+.cauce-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cauce-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 18px;
+  border: 1px solid transparent;
+  border-radius: var(--cauce-radius-control);
+  background: var(--cauce-color-accent);
+  color: var(--cauce-color-accent-fg);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+  transition:
+    filter 0.15s ease,
+    transform 0.05s ease;
+}
+
+.cauce-button:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.cauce-button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.cauce-button:focus-visible {
+  outline: 3px solid var(--cauce-color-focus);
+  outline-offset: 2px;
+}
+
+.cauce-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.cauce-button-secondary {
+  border-color: var(--cauce-color-border);
+  background: var(--cauce-color-surface);
+  color: var(--cauce-color-fg);
+}
+
+.cauce-button-ghost {
+  background: transparent;
+  color: var(--cauce-color-muted);
+}
+
+.cauce-hint,
+.cauce-network {
+  margin: 0;
+  color: var(--cauce-color-muted);
+  font-size: 0.8em;
+  text-align: center;
+}
+
+.cauce-notice {
+  padding: 12px;
+  border: 1px solid var(--cauce-color-border);
+  border-radius: var(--cauce-radius-control);
+  background: var(--cauce-color-surface);
+  font-size: 0.9em;
+}
+
+.cauce-notice p {
+  margin: 0 0 8px;
+}
+
+.cauce-notice-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.cauce-notice-actions .cauce-button {
+  min-height: 36px;
+  padding: 6px 12px;
+}
+
+.cauce-spinner {
+  width: 1em;
+  height: 1em;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: cauce-spin 0.8s linear infinite;
+}
+
+@keyframes cauce-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cauce-step[data-state='active'] .cauce-step-marker,
+  .cauce-spinner {
+    animation: none;
+  }
+
+  .cauce-button {
+    transition: none;
+  }
+}

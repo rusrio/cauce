@@ -28,10 +28,13 @@ import type { PendingPaymentStore } from './store';
 import type { CaucePaymentRequest, PaymentContext, PendingPayment } from './types';
 
 export interface PaymentSessionDeps {
-  /** The payer's wallet. Cauce never holds keys: every transaction is signed here. */
-  walletClient: WalletClient<Transport, Chain, Account>;
-  /** A client for the chain the wallet is connected to. */
-  publicClient: PublicClient;
+  /**
+   * The payer's wallet. Cauce never holds keys: every transaction is signed here. Only needed
+   * to pay: resuming a pending payment works without a wallet.
+   */
+  walletClient?: WalletClient<Transport, Chain, Account>;
+  /** A client for the chain the wallet is connected to. Required together with walletClient. */
+  publicClient?: PublicClient;
   /** Where burned-but-unsettled payments are kept so they can be resumed. */
   store?: PendingPaymentStore;
   relayer?: RelayerClient;
@@ -39,29 +42,37 @@ export interface PaymentSessionDeps {
   relayPollIntervalMs?: number;
 }
 
+interface Clients {
+  walletClient: WalletClient<Transport, Chain, Account>;
+  publicClient: PublicClient;
+}
+
 export interface PaymentOperationOptions {
   signal?: AbortSignal;
 }
 
 export interface CaucePaymentSession {
-  getState(): CaucePaymentState;
+  getState: () => CaucePaymentState;
   /** Subscribes to state changes; compatible with React's useSyncExternalStore. */
-  subscribe(listener: (state: CaucePaymentState) => void): () => void;
-  pay(
+  subscribe: (listener: (state: CaucePaymentState) => void) => () => void;
+  pay: (
     request: CaucePaymentRequest,
     options?: PaymentOperationOptions,
-  ): Promise<SettledPaymentState>;
+  ) => Promise<SettledPaymentState>;
   /** Settles a payment that was burned earlier (e.g. before the tab was closed). */
-  resume(pending: PendingPayment, options?: PaymentOperationOptions): Promise<SettledPaymentState>;
+  resume: (
+    pending: PendingPayment,
+    options?: PaymentOperationOptions,
+  ) => Promise<SettledPaymentState>;
   /** Aborts any operation in flight and returns to idle. */
-  reset(): void;
+  reset: () => void;
 }
 
 export function createPaymentSession(
   config: CauceConfig,
   deps: PaymentSessionDeps,
 ): CaucePaymentSession {
-  const { walletClient, publicClient, store } = deps;
+  const { store } = deps;
   const relayer = deps.relayer ?? createRelayerClient(config);
   const listeners = new Set<(state: CaucePaymentState) => void>();
   let state = initialPaymentState;
@@ -101,7 +112,7 @@ export function createPaymentSession(
     }
   }
 
-  async function confirm(hash: Hash): Promise<void> {
+  async function confirm({ publicClient }: Clients, hash: Hash): Promise<void> {
     const receipt = await publicClient.waitForTransactionReceipt({ hash });
     if (receipt.status !== 'success') {
       throw new CauceError('TX_REVERTED', `Transaction ${hash} reverted`, { details: { hash } });
@@ -109,11 +120,13 @@ export function createPaymentSession(
   }
 
   async function ensureAllowance(
+    clients: Clients,
     token: Address,
     spender: Address,
     amount: bigint,
     signal: AbortSignal,
   ): Promise<void> {
+    const { walletClient, publicClient } = clients;
     const owner = walletClient.account.address;
     const allowance = await publicClient.readContract({
       address: token,
@@ -129,7 +142,7 @@ export function createPaymentSession(
         args: [spender, amount],
       });
       dispatch({ type: 'APPROVE_SUBMITTED', txHash: hash }, signal);
-      await confirm(hash);
+      await confirm(clients, hash);
     }
     dispatch({ type: 'APPROVED' }, signal);
   }
@@ -176,28 +189,38 @@ export function createPaymentSession(
     }
   }
 
-  async function payDirect(ctx: PaymentContext, hookData: Hex, signal: AbortSignal) {
+  async function payDirect(
+    clients: Clients,
+    ctx: PaymentContext,
+    hookData: Hex,
+    signal: AbortSignal,
+  ) {
     const { vault, usdc } = config.settlement;
-    await ensureAllowance(usdc, vault, ctx.quote.total, signal);
+    await ensureAllowance(clients, usdc, vault, ctx.quote.total, signal);
 
-    const hash = await walletClient.writeContract({
+    const hash = await clients.walletClient.writeContract({
       address: vault,
       abi: cauceVaultAbi,
       functionName: 'pay',
       args: [ctx.quote.total, hookData],
     });
     dispatch({ type: 'PAY_SUBMITTED', txHash: hash }, signal);
-    await confirm(hash);
+    await confirm(clients, hash);
     dispatch({ type: 'SETTLED', txHash: hash }, signal);
     return state as SettledPaymentState;
   }
 
-  async function payCctp(ctx: PaymentContext, hookData: Hex, signal: AbortSignal) {
+  async function payCctp(
+    clients: Clients,
+    ctx: PaymentContext,
+    hookData: Hex,
+    signal: AbortSignal,
+  ) {
     const source = config.getSourceChain(ctx.sourceChainId);
     const { domain, vault, relay } = config.settlement;
-    await ensureAllowance(source.usdc, source.tokenMessenger, ctx.quote.total, signal);
+    await ensureAllowance(clients, source.usdc, source.tokenMessenger, ctx.quote.total, signal);
 
-    const burnTxHash = await walletClient.writeContract({
+    const burnTxHash = await clients.walletClient.writeContract({
       address: source.tokenMessenger,
       abi: tokenMessengerV2Abi,
       functionName: 'depositForBurnWithHook',
@@ -224,7 +247,7 @@ export function createPaymentSession(
     };
     await remember(pending);
     try {
-      await confirm(burnTxHash);
+      await confirm(clients, burnTxHash);
     } catch (error) {
       if (error instanceof CauceError && error.code === 'TX_REVERTED') await forget(burnTxHash);
       throw error;
@@ -244,6 +267,11 @@ export function createPaymentSession(
     pay(request, { signal } = {}) {
       return run(signal, async (signal) => {
         const hookData = encodeHookData(request);
+        const { walletClient, publicClient } = deps;
+        if (!walletClient || !publicClient) {
+          throw new CauceError('WALLET_NOT_CONNECTED', 'Connect a wallet to pay');
+        }
+        const clients: Clients = { walletClient, publicClient };
         const sourceChainId = await walletClient.getChainId();
         if (publicClient.chain && publicClient.chain.id !== sourceChainId) {
           throw new CauceError(
@@ -261,8 +289,8 @@ export function createPaymentSession(
 
         dispatch({ type: 'START', ctx }, signal);
         return quote.route === 'direct'
-          ? payDirect(ctx, hookData, signal)
-          : payCctp(ctx, hookData, signal);
+          ? payDirect(clients, ctx, hookData, signal)
+          : payCctp(clients, ctx, hookData, signal);
       });
     },
 
