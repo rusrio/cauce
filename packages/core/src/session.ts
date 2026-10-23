@@ -52,17 +52,20 @@ export interface PaymentOperationOptions {
 }
 
 export interface CaucePaymentSession {
-  getState(): CaucePaymentState;
+  getState: () => CaucePaymentState;
   /** Subscribes to state changes; compatible with React's useSyncExternalStore. */
-  subscribe(listener: (state: CaucePaymentState) => void): () => void;
-  pay(
+  subscribe: (listener: (state: CaucePaymentState) => void) => () => void;
+  pay: (
     request: CaucePaymentRequest,
     options?: PaymentOperationOptions,
-  ): Promise<SettledPaymentState>;
+  ) => Promise<SettledPaymentState>;
   /** Settles a payment that was burned earlier (e.g. before the tab was closed). */
-  resume(pending: PendingPayment, options?: PaymentOperationOptions): Promise<SettledPaymentState>;
+  resume: (
+    pending: PendingPayment,
+    options?: PaymentOperationOptions,
+  ) => Promise<SettledPaymentState>;
   /** Aborts any operation in flight and returns to idle. */
-  reset(): void;
+  reset: () => void;
 }
 
 export function createPaymentSession(

@@ -1,6 +1,6 @@
 import { getAddress, isAddress, type Address, type Chain } from 'viem';
 import { CauceError } from './errors';
-import { createIrisClient, type IrisClient, type IrisClientOptions } from './iris';
+import { createIrisClient, type IrisClient, type IrisClientOverrides } from './iris';
 import { silentLogger, type CauceLogger } from './logger';
 import {
   cctpPresets,
@@ -47,7 +47,7 @@ export interface CreateCauceConfigOptions {
   /** Per-chain overrides or additions to the CCTP presets, keyed by EVM chain id. */
   cctpOverrides?: Readonly<Record<number, Partial<Omit<CctpChainPreset, 'chainId'>>>>;
   fees?: Partial<CauceFeeOptions>;
-  iris?: Partial<IrisClientOptions>;
+  iris?: IrisClientOverrides;
   logger?: CauceLogger;
 }
 

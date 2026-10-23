@@ -48,6 +48,7 @@ export {
   type IrisBurnFee,
   type IrisClient,
   type IrisClientOptions,
+  type IrisClientOverrides,
   type IrisMessage,
   type IrisMessageStatus,
   type WaitForAttestationQuery,
