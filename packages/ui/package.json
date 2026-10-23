@@ -1,0 +1,76 @@
+{
+  "name": "@cauce/ui",
+  "version": "0.0.0",
+  "description": "Ready-made, themable Cauce payment component for React.",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rusrio/cauce.git",
+    "directory": "packages/ui"
+  },
+  "keywords": [
+    "cauce",
+    "usdc",
+    "cctp",
+    "react",
+    "checkout",
+    "payment"
+  ],
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./styles.css": "./dist/styles.css",
+    "./package.json": "./package.json"
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@cauce/core": "workspace:^",
+    "@cauce/react": "workspace:^"
+  },
+  "peerDependencies": {
+    "@tanstack/react-query": "^5.0.0",
+    "react": "^18.0.0 || ^19.0.0",
+    "viem": "^2.30.0",
+    "wagmi": "^3.0.0"
+  },
+  "devDependencies": {
+    "@tanstack/react-query": "^5.104.5",
+    "@testing-library/react": "^16.3.3",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "esbuild": "^0.28.2",
+    "happy-dom": "^21.0.4",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "tsup": "^9.0.0",
+    "typescript": "~6.0.3",
+    "viem": "^2.57.10",
+    "vitest": "^5.0.5",
+    "wagmi": "^3.7.9"
+  }
+}
