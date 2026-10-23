@@ -1,0 +1,77 @@
+{
+  "name": "@cauce/server",
+  "version": "0.0.0",
+  "description": "Idempotent Cauce relayer: settles CCTP V2 payments on the settlement chain with a server-held key.",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rusrio/cauce.git",
+    "directory": "packages/server"
+  },
+  "keywords": [
+    "cauce",
+    "usdc",
+    "cctp",
+    "relayer",
+    "nextjs"
+  ],
+  "exports": {
+    ".": {
+      "browser": "./dist/browser.js",
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./next": {
+      "browser": "./dist/browser.js",
+      "import": {
+        "types": "./dist/next.d.ts",
+        "default": "./dist/next.js"
+      },
+      "require": {
+        "types": "./dist/next.d.cts",
+        "default": "./dist/next.cjs"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:e2e": "vitest run --config vitest.e2e.config.ts"
+  },
+  "dependencies": {
+    "@cauce/core": "workspace:^"
+  },
+  "peerDependencies": {
+    "viem": "^2.30.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "esbuild": "^0.28.2",
+    "tsup": "^9.0.0",
+    "typescript": "~6.0.3",
+    "viem": "^2.57.10",
+    "vitest": "^5.0.5"
+  }
+}
