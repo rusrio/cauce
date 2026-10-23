@@ -8,9 +8,9 @@ supported by [Circle CCTP V2](https://developers.circle.com/cctp), and the merch
 single settlement chain ([Arc](https://www.arc.io)), credited in one vault, with one balance to
 withdraw.
 
-> **Status: Phase 2, testnet only, unaudited.** `@cauce/core`, `@cauce/server` and the hardened
-> contracts are ready; `@cauce/react`, `@cauce/ui` and the demo shop are next. Do not use with
-> real funds.
+> **Status: Phase 3, testnet only, unaudited.** `@cauce/core`, `@cauce/server`, `@cauce/react`,
+> `@cauce/ui` and the hardened contracts are ready; the demo shop is next. Do not use with real
+> funds.
 
 ## How a payment flows
 
@@ -45,8 +45,8 @@ client code or props.
 | ---------------------------------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------- |
 | [`@cauce/core`](packages/core)     | ✅ Phase 1 | Framework-agnostic TypeScript (only depends on viem): config, chain presets, state machine, Iris client, hookData, payment session |
 | [`@cauce/server`](packages/server) | ✅ Phase 2 | Idempotent relayer: Fetch API handler + Next.js adapter, key from a server env var                                                 |
-| `@cauce/react`                     | 🔜 Phase 3 | Thin hooks over core (`useCaucePayment`) and a headless `<CauceCheckout>`                                                          |
-| `@cauce/ui`                        | 🔜 Phase 3 | Styled `<CaucePayment />`, themable through `--cauce-*` CSS variables                                                              |
+| [`@cauce/react`](packages/react)   | ✅ Phase 3 | Hooks over core (`useCaucePayment`, pending payments, quotes) and a headless `<CauceCheckout>`; React 18/19, wagmi 3               |
+| [`@cauce/ui`](packages/ui)         | ✅ Phase 3 | Accessible, themable `<CaucePayment />` driven by `--cauce-*` CSS variables                                                        |
 | `apps/demo-shop`                   | 🔜 Phase 4 | Example Next.js store                                                                                                              |
 | [`contracts/`](contracts)          | ✅ Phase 1 | `CauceVault` and `CauceRelay` (Foundry); ABIs generated into core with the wagmi CLI                                               |
 
